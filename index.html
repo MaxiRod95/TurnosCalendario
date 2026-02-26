@@ -1,0 +1,886 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0b1220">
+  <title>Calendario de Turnos (Producciones)</title>
+  <style>
+    :root{
+      --bg:#0b1220;
+      --muted:#91a4c7;
+      --text:#e8f0ff;
+      --border: rgba(255,255,255,.10);
+
+      --t1: #ff5c5c;   /* Turno 1 */
+      --t2: #4ade80;   /* Turno 2 */
+      --t3: #60a5fa;   /* Turno 3 */
+      --off:#64748b;   /* Descanso */
+      --holiday:#fbbf24; /* Feriado */
+
+      --today:#a78bfa; /* marco HOY */
+
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      background:
+        radial-gradient(1200px 600px at 10% 10%, rgba(96,165,250,.18), transparent 60%),
+        radial-gradient(1200px 600px at 90% 30%, rgba(74,222,128,.12), transparent 55%),
+        radial-gradient(1000px 600px at 40% 90%, rgba(255,92,92,.12), transparent 55%),
+        var(--bg);
+      color:var(--text);
+      min-height:100vh;
+      padding:18px;
+    }
+    .wrap{
+      max-width: 1100px;
+      margin:0 auto;
+      display:grid;
+      grid-template-columns: 1.4fr .9fr;
+      gap:16px;
+    }
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:16px 16px 12px 16px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap:wrap;
+    }
+    .title{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      min-width: 240px;
+    }
+    .title h1{
+      margin:0;
+      font-size:17px;
+      letter-spacing:.2px;
+    }
+    .title p{
+      margin:0;
+      color:var(--muted);
+      font-size:12.5px;
+      line-height:1.35;
+    }
+    .controls{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+      align-items:center;
+    }
+    button{
+      background: rgba(255,255,255,.06);
+      color:var(--text);
+      border:1px solid var(--border);
+      border-radius: 12px;
+      padding:10px 12px;
+      cursor:pointer;
+      transition: transform .08s ease, background .12s ease;
+      font-weight:700;
+      font-size:13px;
+      touch-action: manipulation;
+    }
+    button:hover{ background: rgba(255,255,255,.10); }
+    button:active{ transform: translateY(1px); }
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.04);
+      border-radius: 999px;
+      padding: 8px 10px;
+      font-size:12px;
+      font-weight:800;
+      color: var(--text);
+      white-space:nowrap;
+    }
+    .pill select, .pill input{
+      background: transparent;
+      color: var(--text);
+      border: none;
+      font-weight:800;
+      outline:none;
+      cursor:pointer;
+      font-size:12px;
+    }
+    .pill input{ cursor:text; width: 170px; }
+    .pill option{ color:#000; }
+
+    .monthLabel{
+      font-size:14px;
+      color:var(--muted);
+      font-weight:800;
+      letter-spacing:.4px;
+      text-transform:capitalize;
+      padding:0 16px 12px 16px;
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+
+    .grid{ padding: 0 12px 14px 12px; }
+    .dow{
+      display:grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap:10px;
+      padding: 0 4px 10px 4px;
+      color: var(--muted);
+      font-size:12px;
+      font-weight:800;
+      letter-spacing:.3px;
+    }
+    .days{
+      display:grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap:10px;
+    }
+    .day{
+      position:relative;
+      min-height: 88px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.04);
+      padding:10px 10px 8px 10px;
+      cursor:pointer;
+      transition: transform .08s ease, border-color .12s ease, background .12s ease;
+      overflow:hidden;
+      touch-action: manipulation;
+    }
+    .day:hover{
+      background: rgba(255,255,255,.06);
+      border-color: rgba(255,255,255,.18);
+      transform: translateY(-1px);
+    }
+    .day.muted{ opacity:.40; cursor:default; }
+    .day.muted:hover{ transform:none; }
+
+    .num{ font-size:13px; font-weight:900; opacity:.95; }
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      font-size:11px;
+      font-weight:900;
+      padding:6px 8px;
+      border-radius: 999px;
+      margin-top:10px;
+      background: rgba(0,0,0,.22);
+      border: 1px solid rgba(255,255,255,.10);
+      width: fit-content;
+    }
+    .dot{ width:10px; height:10px; border-radius: 999px; display:inline-block; }
+
+    .t1{ --c: var(--t1); }
+    .t2{ --c: var(--t2); }
+    .t3{ --c: var(--t3); }
+    .off{ --c: var(--off); }
+
+    .t1, .t2, .t3, .off{
+      border-color: rgba(255,255,255,.12);
+      background:
+        radial-gradient(120px 80px at 20% 20%, color-mix(in srgb, var(--c) 28%, transparent), transparent 60%),
+        rgba(255,255,255,.04);
+    }
+    .t1 .dot, .t2 .dot, .t3 .dot, .off .dot{ background: var(--c); }
+    .t1 .badge, .t2 .badge, .t3 .badge, .off .badge{
+      border-color: color-mix(in srgb, var(--c) 30%, rgba(255,255,255,.10));
+    }
+
+    /* HOY: solo marco (sin texto) */
+    .today{
+      outline: 3px solid rgba(167, 139, 250, .95);
+      outline-offset: 2px;
+      box-shadow: 0 0 0 6px rgba(167, 139, 250, .16);
+    }
+
+    /* feriado */
+    .holidayTag{
+      position:absolute;
+      top:10px;
+      right:10px;
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      font-size:10.5px;
+      font-weight:950;
+      padding:6px 8px;
+      border-radius:999px;
+      background: rgba(0,0,0,.26);
+      border:1px solid rgba(255,255,255,.14);
+      backdrop-filter: blur(6px);
+    }
+    .holidayTag .dot{ background: var(--holiday); width:10px; height:10px; }
+    .holidayOutline{
+      outline: 2px solid color-mix(in srgb, var(--holiday) 65%, rgba(255,255,255,.25));
+      outline-offset: 2px;
+    }
+
+    .selected{
+      outline: 2px solid rgba(255,255,255,.35);
+      outline-offset: 2px;
+    }
+
+    .side{
+      padding:14px 14px 16px 14px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .side h2{ margin: 2px 0 0 0; font-size:16px; }
+    .sub{ margin:0; color:var(--muted); font-size:13px; line-height:1.35; }
+
+    .kv{
+      display:grid;
+      grid-template-columns: 110px 1fr;
+      gap:10px;
+      padding: 12px;
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.04);
+    }
+    .k{ color: var(--muted); font-weight:800; font-size:12px; }
+    .v{ font-weight:900; font-size:13px; line-height:1.3; }
+
+    .legend{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:8px;
+    }
+    .legendItem{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:10px 10px;
+      border-radius: 14px;
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.04);
+      font-size:12px;
+      font-weight:900;
+      color:var(--text);
+    }
+    .legendItem .dot{ width:12px; height:12px; }
+
+    /* CLIMA */
+    .miniCard{
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.04);
+      border-radius: 14px;
+      padding: 12px;
+    }
+    .miniRow{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:baseline;
+    }
+    .miniTitle{ font-weight:950; font-size:13px; }
+    .miniMuted{ color: var(--muted); font-weight:800; font-size:12px; }
+    .wxTop{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      margin-top:10px;
+    }
+    .wxIcon{
+      width:52px; height:52px;
+      display:grid; place-items:center;
+      border-radius:16px;
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.05);
+      font-size:28px;
+    }
+    .wxTemp{
+      font-size: 30px;
+      font-weight: 1000;
+      line-height: 1;
+    }
+    .wxDesc{ margin-top:6px; color:var(--muted); font-weight:800; font-size:12px; }
+    .wxMore{ margin-top:6px; color:var(--muted); font-weight:800; font-size:12px; line-height:1.35; }
+
+    .wxWeek{
+      margin-top:12px;
+      display:grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap:8px;
+    }
+    .wxDay{
+      border:1px solid var(--border);
+      background: rgba(255,255,255,.04);
+      border-radius: 14px;
+      padding:10px;
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      align-items:center;
+    }
+    .wxDayLeft{
+      display:flex;
+      flex-direction:column;
+      gap:3px;
+      min-width:0;
+    }
+    .wxDayName{
+      font-weight:1000;
+      font-size:12px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .wxDayRange{
+      color:var(--muted);
+      font-weight:900;
+      font-size:12px;
+      white-space:nowrap;
+    }
+    .wxDayIcon{
+      font-size:18px;
+      width:26px;
+      text-align:center;
+      flex:0 0 auto;
+    }
+
+    /* responsive */
+    @media (max-width: 980px){
+      .wrap{ grid-template-columns: 1fr; }
+    }
+    @media (max-width: 560px){
+      body{ padding: 12px; }
+      .day{ min-height: 78px; padding: 9px 9px 8px 9px; }
+      .days{ gap:8px; }
+      .dow{ gap:8px; font-size:11.5px; }
+      header{ padding: 14px; }
+      .monthLabel{ padding: 0 14px 10px 14px; }
+      button{ padding: 10px 11px; }
+      .pill{ width: 100%; justify-content: space-between; }
+      .pill input{ width: 190px; }
+      .legend{ grid-template-columns: 1fr; }
+      .wxWeek{ grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <!-- CALENDARIO -->
+    <div class="card">
+      <header>
+        <div class="title">
+          <h1>Calendario de turnos — Producciones</h1>
+          <p>Turno 1: 22–06 · Turno 2: 06–14 · Turno 3: 14–22 · Zona: Uruguay (UTC-3)</p>
+        </div>
+
+        <div class="controls">
+          <button id="prev">← Mes</button>
+          <button id="todayBtn">Hoy</button>
+          <button id="next">Mes →</button>
+
+          <div class="pill" title="Elegí la producción para ver tu turno">
+            <span>Producción:</span>
+            <select id="prod">
+              <option value="19">P1</option>
+              <option value="46">P2</option>
+              <option value="73">P3</option>
+              <option value="100" selected>P4</option>
+            </select>
+          </div>
+        </div>
+      </header>
+
+      <div class="monthLabel" id="monthLabel">
+        <span></span>
+        <span class="miniMuted" id="monthMeta"></span>
+      </div>
+
+      <div class="grid">
+        <div class="dow">
+          <div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div><div>Dom</div>
+        </div>
+        <div class="days" id="days"></div>
+      </div>
+    </div>
+
+    <!-- PANEL -->
+    <div class="card">
+      <div class="side">
+        <!-- CLIMA -->
+        <div class="miniCard">
+          <div class="miniRow">
+            <div class="miniTitle">Clima</div>
+            <div class="miniMuted" id="wxPlace">Montevideo, UY</div>
+          </div>
+
+          <div class="pill" style="margin-top:10px;">
+            <span>Ciudad:</span>
+            <input id="city" value="Montevideo" />
+          </div>
+
+          <div class="miniRow" style="margin-top:10px;">
+            <button id="wxBtn">Actualizar</button>
+            <span class="miniMuted" id="wxUpdated">—</span>
+          </div>
+
+          <div class="wxTop">
+            <div class="wxIcon" id="wxIcon">—</div>
+            <div>
+              <div class="wxTemp" id="wxTemp">—</div>
+              <div class="wxDesc" id="wxDesc">—</div>
+            </div>
+          </div>
+          <div class="wxMore" id="wxMore">—</div>
+
+          <div class="wxWeek" id="wxWeek"></div>
+        </div>
+
+        <!-- DETALLE -->
+        <h2>Detalle del día</h2>
+        <p class="sub" id="hint">Tocá un día para ver el turno de la producción elegida + feriados.</p>
+
+        <div class="kv"><div class="k">Fecha</div><div class="v" id="dFecha">—</div></div>
+        <div class="kv"><div class="k">Producción</div><div class="v" id="dProd">—</div></div>
+        <div class="kv"><div class="k">Turno</div><div class="v" id="dTurno">—</div></div>
+        <div class="kv"><div class="k">Horario</div><div class="v" id="dHorario">—</div></div>
+        <div class="kv"><div class="k">P1/P2/P3/P4</div><div class="v" id="dAll">—</div></div>
+        <div class="kv"><div class="k">Feriado</div><div class="v" id="dHoliday">—</div></div>
+
+        <div class="legend">
+          <div class="legendItem"><span class="dot" style="background:var(--t1)"></span> Turno 1 (22–06)</div>
+          <div class="legendItem"><span class="dot" style="background:var(--t2)"></span> Turno 2 (06–14)</div>
+          <div class="legendItem"><span class="dot" style="background:var(--t3)"></span> Turno 3 (14–22)</div>
+          <div class="legendItem"><span class="dot" style="background:var(--off)"></span> Descanso</div>
+          <div class="legendItem"><span class="dot" style="background:var(--holiday)"></span> Feriado</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js");
+    // ============================
+    // Config
+    // ============================
+    const TZ = "America/Montevideo";
+    const PRODUCCIONES = { P1: 19, P2: 46, P3: 73, P4: 100 };
+    const monthNames = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+
+    // YYYY-MM-DD en zona Uruguay (sin corrimientos por UTC)
+    function formatDateTZ(date){
+      const fmt = new Intl.DateTimeFormat("en-CA", {
+        timeZone: TZ, year:"numeric", month:"2-digit", day:"2-digit"
+      });
+      return fmt.format(date);
+    }
+
+    // HOY (key) en Uruguay
+    function todayKeyUY(){
+      return formatDateTZ(new Date());
+    }
+
+    // ============================
+    // Turnos (blindado a TZ)
+    // ============================
+    const caluloCalendar = (year, month, produccion) => {
+      const datos = [
+        1,1,1,1,1,0,0,3,3,3,
+        3,3,0,0,2,2,2,2,2,0,
+        0,1,1,1,1,1,1,0,0,3,
+        3,3,3,3,0,0,2,2,2,2,
+        2,0,0,1,1,1,1,1,0,0,
+        3,3,3,3,3,3,0,0,2,2,
+        2,2,2,0,0,1,1,1,1,1,
+        0,0,3,3,3,3,3,0,0,2,
+        2,2,2,2,2,0,1,1,1,1,
+        1,1,0,3,3,3,3,3,3,0,
+        2,2,2,2,2,2,0,0
+      ];
+      const mod = (n, m) => ((n % m) + m) % m;
+
+      // serial Excel UTC (base 1899-12-30)
+      const excelSerialUTC = (y, m, d) => {
+        const fecha = Date.UTC(y, m, d);
+        const base  = Date.UTC(1899, 11, 30);
+        return Math.floor((fecha - base) / 86400000);
+      };
+
+      const calcularTurno = (diaFinal, mesFinal, anioFinal, produccion) => {
+        const serial = excelSerialUTC(anioFinal, mesFinal, diaFinal);
+        const idx = mod(serial - produccion, 108);
+        return datos[idx]; // 0/1/2/3
+      };
+
+      let fechas = {};
+      // CLAVE: usar 12:00 UTC para evitar corrimiento en UTC-3
+      const date = new Date(Date.UTC(year, month, 1, 12));
+
+      while (date.getUTCMonth() === month) {
+        const day = date.getUTCDate();
+
+        const tSel = calcularTurno(day, month, year, produccion);
+        const params = {
+          Turno: (tSel===1||tSel===2||tSel===3) ? String(tSel) : "Descanso",
+          P1: calcularTurno(day, month, year, PRODUCCIONES.P1),
+          P2: calcularTurno(day, month, year, PRODUCCIONES.P2),
+          P3: calcularTurno(day, month, year, PRODUCCIONES.P3),
+          P4: calcularTurno(day, month, year, PRODUCCIONES.P4),
+        };
+
+        const key = formatDateTZ(date);
+        fechas[key] = params;
+
+        date.setUTCDate(day + 1);
+      }
+      return fechas;
+    };
+
+    // ============================
+    // Feriados Uruguay (algoritmo)
+    // ============================
+    function easterSunday(year){
+      const a = year % 19;
+      const b = Math.floor(year / 100);
+      const c = year % 100;
+      const d = Math.floor(b / 4);
+      const e = b % 4;
+      const f = Math.floor((b + 8) / 25);
+      const g = Math.floor((b - f + 1) / 3);
+      const h = (19*a + b - d - g + 15) % 30;
+      const i = Math.floor(c / 4);
+      const k = c % 4;
+      const l = (32 + 2*e + 2*i - h - k) % 7;
+      const m = Math.floor((a + 11*h + 22*l) / 451);
+      const month = Math.floor((h + l - 7*m + 114) / 31);
+      const day = ((h + l - 7*m + 114) % 31) + 1;
+      return new Date(Date.UTC(year, month-1, day, 12));
+    }
+    function addDaysUTC(dateUTC, days){
+      const d = new Date(dateUTC.getTime());
+      d.setUTCDate(d.getUTCDate() + days);
+      return d;
+    }
+    function uruguayHolidays(year){
+      const map = {};
+      const add = (y,m,d,name) => {
+        const dt = new Date(Date.UTC(y, m-1, d, 12));
+        map[formatDateTZ(dt)] = name;
+      };
+
+      add(year,1,1,"Año Nuevo");
+      add(year,1,6,"Día de Reyes");
+      add(year,4,19,"Desembarco de los 33 Orientales");
+      add(year,5,1,"Día de los Trabajadores");
+      add(year,5,18,"Batalla de Las Piedras");
+      add(year,6,19,"Natalicio de Artigas");
+      add(year,7,18,"Jura de la Constitución");
+      add(year,8,25,"Declaratoria de la Independencia");
+      add(year,10,12,"Día de la Raza");
+      add(year,11,2,"Día de los Difuntos");
+      add(year,12,25,"Navidad (Fiesta de la Familia)");
+
+      const easter = easterSunday(year);
+      map[formatDateTZ(addDaysUTC(easter, -48))] = "Carnaval (Lunes)";
+      map[formatDateTZ(addDaysUTC(easter, -47))] = "Carnaval (Martes)";
+      map[formatDateTZ(addDaysUTC(easter, -3))]  = "Turismo (Jueves)";
+      map[formatDateTZ(addDaysUTC(easter, -2))]  = "Turismo (Viernes)";
+      return map;
+    }
+
+    // ============================
+    // UI helpers
+    // ============================
+    function turnoToClass(turno){
+      if (turno === "1") return "t1";
+      if (turno === "2") return "t2";
+      if (turno === "3") return "t3";
+      return "off";
+    }
+    function turnoToHorario(turno){
+      if (turno === "1") return "22:00 → 06:00";
+      if (turno === "2") return "06:00 → 14:00";
+      if (turno === "3") return "14:00 → 22:00";
+      return "—";
+    }
+    function turnoLabel(turno){
+      if (turno === "Descanso") return "Descanso";
+      return `Turno ${turno}`;
+    }
+    function selectedProdLabel(val){
+      val = Number(val);
+      if (val === PRODUCCIONES.P1) return "P1";
+      if (val === PRODUCCIONES.P2) return "P2";
+      if (val === PRODUCCIONES.P3) return "P3";
+      if (val === PRODUCCIONES.P4) return "P4";
+      return `(${val})`;
+    }
+
+    // ============================
+    // Render calendario
+    // ============================
+    const daysEl = document.getElementById("days");
+    const monthLabel = document.getElementById("monthLabel").firstElementChild;
+    const monthMeta = document.getElementById("monthMeta");
+
+    const dFecha = document.getElementById("dFecha");
+    const dProd  = document.getElementById("dProd");
+    const dTurno = document.getElementById("dTurno");
+    const dHorario = document.getElementById("dHorario");
+    const dAll = document.getElementById("dAll");
+    const dHoliday = document.getElementById("dHoliday");
+    const hint = document.getElementById("hint");
+
+    const prodSel = document.getElementById("prod");
+
+    let viewDate = new Date(); // hoy
+    let selectedKey = null;
+
+    function buildCalendar(){
+      const y = viewDate.getFullYear();
+      const m = viewDate.getMonth();
+      const prod = Number(prodSel.value);
+
+      const turnosMes = caluloCalendar(y, m, prod);
+      const feriados = uruguayHolidays(y);
+
+      const todayKey = todayKeyUY();
+
+      monthLabel.textContent = `${monthNames[m]} ${y}`;
+      monthMeta.textContent = `Viendo: ${selectedProdLabel(prod)} · Hoy: ${todayKey}`;
+
+      // lunes como primer día (calculado en TZ Uruguay)
+      const firstUTC = new Date(Date.UTC(y, m, 1, 12));
+      const firstLocal = new Date(formatDateTZ(firstUTC) + "T12:00:00");
+      let firstDow = firstLocal.getDay(); // 0 dom..6 sáb
+      firstDow = (firstDow === 0) ? 7 : firstDow;
+      const padStart = firstDow - 1;
+
+      const lastUTC = new Date(Date.UTC(y, m + 1, 0, 12));
+      const daysInMonth = lastUTC.getUTCDate();
+
+      daysEl.innerHTML = "";
+
+      for(let i=0;i<padStart;i++){
+        const cell = document.createElement("div");
+        cell.className = "day muted";
+        cell.innerHTML = `<div class="num"> </div>`;
+        daysEl.appendChild(cell);
+      }
+
+      for(let day=1; day<=daysInMonth; day++){
+        // CLAVE: 12:00 UTC para evitar corrimiento al convertir a Uruguay
+        const dtUTC = new Date(Date.UTC(y, m, day, 12));
+        const key = formatDateTZ(dtUTC);
+
+        const info = turnosMes[key];
+        const fer = feriados[key];
+
+        const turno = info?.Turno ?? "Descanso";
+        const cls = turnoToClass(turno);
+
+        const cell = document.createElement("div");
+        cell.className = `day ${cls}` + (key === selectedKey ? " selected" : "");
+        if (fer) cell.className += " holidayOutline";
+        if (key === todayKey) cell.className += " today";
+
+        cell.dataset.key = key;
+
+        cell.innerHTML = `
+          <div class="num">${day}</div>
+          ${fer ? `<div class="holidayTag"><span class="dot"></span><span>Feriado</span></div>` : ""}
+          <div class="badge">
+            <span class="dot"></span>
+            <span>${turnoLabel(turno)}</span>
+          </div>
+        `;
+
+        cell.addEventListener("click", () => {
+          if(!info) return;
+          selectedKey = key;
+          renderDetail(key, info, fer);
+          buildCalendar();
+        });
+
+        daysEl.appendChild(cell);
+      }
+    }
+
+    function renderDetail(fecha, info, feriadoNombre){
+      hint.textContent = "Detalle calculado por tu patrón (Uruguay UTC-3).";
+      dFecha.textContent = fecha;
+      dProd.textContent = `${selectedProdLabel(prodSel.value)} (offset ${prodSel.value})`;
+      dTurno.textContent = turnoLabel(info.Turno);
+      dHorario.textContent = turnoToHorario(info.Turno);
+      dAll.textContent = `P1:${info.P1} · P2:${info.P2} · P3:${info.P3} · P4:${info.P4}`;
+      dHoliday.textContent = feriadoNombre ? feriadoNombre : "—";
+    }
+
+    function clearDetail(){
+      selectedKey = null;
+      dFecha.textContent = dProd.textContent = dTurno.textContent = dHorario.textContent = dAll.textContent = dHoliday.textContent = "—";
+      hint.textContent = "Tocá un día para ver el turno de la producción elegida + feriados.";
+    }
+
+    // Controles
+    document.getElementById("prev").addEventListener("click", () => {
+      viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1);
+      clearDetail();
+      buildCalendar();
+    });
+    document.getElementById("next").addEventListener("click", () => {
+      viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1);
+      clearDetail();
+      buildCalendar();
+    });
+    document.getElementById("todayBtn").addEventListener("click", () => {
+      viewDate = new Date();
+      clearDetail();
+      buildCalendar();
+    });
+    prodSel.addEventListener("change", () => {
+      clearDetail();
+      buildCalendar();
+    });
+
+    // ============================
+    // Clima (Open-Meteo + Geocoding) + iconos + semana
+    // ============================
+    const wxPlace = document.getElementById("wxPlace");
+    const wxIconEl = document.getElementById("wxIcon");
+    const wxTempEl = document.getElementById("wxTemp");
+    const wxDescEl = document.getElementById("wxDesc");
+    const wxMoreEl = document.getElementById("wxMore");
+    const wxUpdatedEl = document.getElementById("wxUpdated");
+    const wxWeekEl = document.getElementById("wxWeek");
+    const cityInput = document.getElementById("city");
+    const wxBtn = document.getElementById("wxBtn");
+
+    function weatherCodeToText(code){
+      const c = Number(code);
+      if (c === 0) return "Cielo despejado";
+      if ([1,2,3].includes(c)) return "Nublado / parcialmente nublado";
+      if ([45,48].includes(c)) return "Niebla";
+      if ([51,53,55].includes(c)) return "Llovizna";
+      if ([61,63,65].includes(c)) return "Lluvia";
+      if ([66,67].includes(c)) return "Lluvia helada";
+      if ([71,73,75,77].includes(c)) return "Nieve";
+      if ([80,81,82].includes(c)) return "Chubascos";
+      if ([95,96,99].includes(c)) return "Tormenta";
+      return `Código ${c}`;
+    }
+    function weatherCodeToIcon(code){
+      const c = Number(code);
+      if (c === 0) return "☀️";
+      if (c === 1) return "🌤️";
+      if (c === 2) return "⛅";
+      if (c === 3) return "☁️";
+      if ([45,48].includes(c)) return "🌫️";
+      if ([51,53,55].includes(c)) return "🌦️";
+      if ([61,63,65].includes(c)) return "🌧️";
+      if ([66,67].includes(c)) return "🌧️";
+      if ([71,73,75,77].includes(c)) return "❄️";
+      if ([80,81,82].includes(c)) return "🌦️";
+      if ([95,96,99].includes(c)) return "⛈️";
+      return "🌡️";
+    }
+    function weekdayShortFromISO(iso){
+      const dt = new Date(iso + "T12:00:00");
+      return new Intl.DateTimeFormat("es-UY", { weekday:"short" }).format(dt);
+    }
+
+    async function fetchWeatherForCityUY(city){
+      const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=es&format=json&country_code=UY`;
+      const geo = await fetch(geoUrl).then(r => r.json());
+      if (!geo?.results?.length) throw new Error("No encontré esa ciudad en Uruguay.");
+      const loc = geo.results[0];
+      const name = `${loc.name}${loc.admin1 ? ", " + loc.admin1 : ""}, ${loc.country_code}`;
+
+      const wxUrl =
+        `https://api.open-meteo.com/v1/forecast` +
+        `?latitude=${loc.latitude}&longitude=${loc.longitude}` +
+        `&current_weather=true` +
+        `&daily=weathercode,temperature_2m_max,temperature_2m_min` +
+        `&timezone=${encodeURIComponent(TZ)}`;
+
+      const wx = await fetch(wxUrl).then(r => r.json());
+      return { name, wx };
+    }
+
+    function renderWeek(daily){
+      wxWeekEl.innerHTML = "";
+      if (!daily?.time?.length) return;
+
+      const n = Math.min(7, daily.time.length);
+      for (let i=0;i<n;i++){
+        const iso = daily.time[i];
+        const code = daily.weathercode?.[i];
+        const tmax = daily.temperature_2m_max?.[i];
+        const tmin = daily.temperature_2m_min?.[i];
+
+        const el = document.createElement("div");
+        el.className = "wxDay";
+        el.innerHTML = `
+          <div class="wxDayLeft">
+            <div class="wxDayName">${weekdayShortFromISO(iso)} ${iso}</div>
+            <div class="wxDayRange">${Math.round(tmin)}° / ${Math.round(tmax)}°</div>
+          </div>
+          <div class="wxDayIcon" title="${weatherCodeToText(code)}">${weatherCodeToIcon(code)}</div>
+        `;
+        wxWeekEl.appendChild(el);
+      }
+    }
+
+    async function updateWeather(){
+      wxBtn.disabled = true;
+      wxBtn.textContent = "Actualizando...";
+      try{
+        const city = cityInput.value.trim() || "Montevideo";
+        const { name, wx } = await fetchWeatherForCityUY(city);
+
+        wxPlace.textContent = name;
+
+        const cw = wx.current_weather;
+        if (!cw) throw new Error("Clima no disponible.");
+
+        wxIconEl.textContent = weatherCodeToIcon(cw.weathercode);
+        wxTempEl.textContent = `${Math.round(cw.temperature)}°C`;
+        wxDescEl.textContent = weatherCodeToText(cw.weathercode);
+        wxMoreEl.textContent = `Viento: ${Math.round(cw.windspeed)} km/h · Dirección: ${cw.winddirection}°`;
+        wxUpdatedEl.textContent = `Actualizado: ${cw.time.replace("T"," ")}`;
+
+        renderWeek(wx.daily);
+      } catch (err){
+        wxIconEl.textContent = "—";
+        wxTempEl.textContent = "—";
+        wxDescEl.textContent = err?.message || "Error de clima";
+        wxMoreEl.textContent = "—";
+        wxUpdatedEl.textContent = "—";
+        wxWeekEl.innerHTML = "";
+      } finally {
+        wxBtn.disabled = false;
+        wxBtn.textContent = "Actualizar";
+      }
+    }
+
+    wxBtn.addEventListener("click", updateWeather);
+
+    // init
+    buildCalendar();
+    updateWeather();
+  </script>
+</body>
+</html>
